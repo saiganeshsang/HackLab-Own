@@ -99,6 +99,11 @@ export default function HackLab() {
     setUser(data.user);
   }
   }
+  const founderName =
+  user?.email === "foundera@hacklab.com"
+    ? "Founder A"
+    : "Founder B";
+
   async function fetchSessions() {
   const { data, error } = await supabase
     .from('sessions')
@@ -117,7 +122,11 @@ setSessions(fixedData);
 
   function startSession() {
     if (!user) return;
-    const s = { user, startTime: Date.now(), id: Date.now() };
+    const s = {
+  user: founderName,
+  startTime: Date.now(),
+  id: Date.now()
+};
     setActiveSession(s);
     setElapsed(0);
     save(STORAGE_KEYS.activeSession, s);
@@ -129,7 +138,7 @@ setSessions(fixedData);
   const duration = Date.now() - activeSession.startTime;
 
   const newSession = {
-    username: activeSession.user,
+    user: founderName,
     duration,
     note: sessionNote.trim(),
     tags: sessionTags,
@@ -280,10 +289,22 @@ setSessions(fixedData);
 }
 
   const statsA = getStats("Founder A");
-  const statsB = getStats("Founder B");
-  const myStats = user === "Founder A" ? statsA : statsB;
-  const theirStats = user === "Founder A" ? statsB : statsA;
-  const rival = user === "Founder A" ? "Founder B" : "Founder A";
+const statsB = getStats("Founder B");
+
+const myStats =
+  founderName === "Founder A"
+    ? statsA
+    : statsB;
+
+const theirStats =
+  founderName === "Founder A"
+    ? statsB
+    : statsA;
+
+const rival =
+  founderName === "Founder A"
+    ? "Founder B"
+    : "Founder A";
 
   const TABS = [
     { id: "dashboard", label: "Dashboard", icon: "ti-dashboard" },
@@ -293,7 +314,7 @@ setSessions(fixedData);
     { id: "calendar", label: "Calendar", icon: "ti-calendar" },
   ];
 
-  const color = USER_COLORS[user];
+  const color = USER_COLORS[founderName];
   const rivalColor = USER_COLORS[rival];
 
   return (
@@ -310,8 +331,10 @@ setSessions(fixedData);
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>{USER_AVATARS[user]}</div>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{user}</span>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>{USER_AVATARS[founderName]}</div>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+  {founderName}
+</span>
           <button onClick={() => setUser(null)} style={{ fontSize: 12, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}>Switch</button>
         </div>
       </div>
