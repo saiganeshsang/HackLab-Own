@@ -41,6 +41,8 @@ function monthKey(d) { return d.slice(0,7); }
 
 export default function HackLab() {
   const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [tab, setTab] = useState("dashboard");
   const [sessions, setSessions] = useState([]);
   const [todos, setTodos] = useState([]);
@@ -61,13 +63,8 @@ export default function HackLab() {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    setSessions(getStorage(STORAGE_KEYS.sessions) || []);
-    setTodos(getStorage(STORAGE_KEYS.todos) || []);
-    setChat(getStorage(STORAGE_KEYS.chat) || []);
-    setSchedule(getStorage(STORAGE_KEYS.schedule) || []);
-    const as = getStorage(STORAGE_KEYS.activeSession);
-    if (as) { setActiveSession(as); }
-  }, []);
+  fetchSessions();
+ }, []);
 
   useEffect(() => {
     if (activeSession) {
@@ -87,6 +84,36 @@ export default function HackLab() {
   function save(key, data) {
     setStorage(key, data);
   }
+   async function login() {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (data.user) {
+    setUser(data.user);
+  }
+  }
+  async function fetchSessions() {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .order('id', { ascending: false });
+
+  if (!error && data) {
+    const fixedData = data.map(item => ({
+  ...item,
+  user: item.username
+  }));
+
+setSessions(fixedData);
+  }
+  }
 
   function startSession() {
     if (!user) return;
@@ -96,28 +123,34 @@ export default function HackLab() {
     save(STORAGE_KEYS.activeSession, s);
   }
 
-  function stopSession() {
-    if (!activeSession || !sessionNote.trim()) return;
-    const duration = Date.now() - activeSession.startTime;
-    const newSession = {
-      ...activeSession,
-      endTime: Date.now(),
-      duration,
-      note: sessionNote.trim(),
-      tags: sessionTags,
-      project: sessionProject.trim(),
-      date: today(),
-    };
-    const updated = [newSession, ...sessions];
-    setSessions(updated);
-    save(STORAGE_KEYS.sessions, updated);
-    setActiveSession(null);
-    save(STORAGE_KEYS.activeSession, null);
-    setSessionNote("");
-    setSessionTags([]);
-    setSessionProject("");
-    setShowSessionForm(false);
-    setElapsed(0);
+  async function stopSession() {
+  if (!activeSession || !sessionNote.trim()) return;
+
+  const duration = Date.now() - activeSession.startTime;
+
+  const newSession = {
+    username: activeSession.user,
+    duration,
+    note: sessionNote.trim(),
+    tags: sessionTags,
+    project: sessionProject.trim(),
+    date: today(),
+  };
+
+  const { error } = await supabase
+    .from('sessions')
+    .insert([newSession]);
+
+  if (!error) {
+    fetchSessions();
+  }
+
+  setActiveSession(null);
+  setSessionNote("");
+  setSessionTags([]);
+  setSessionProject("");
+  setShowSessionForm(false);
+  setElapsed(0);
   }
 
   function addTodo() {
@@ -198,26 +231,53 @@ export default function HackLab() {
     return new Date(y, m - 1, 1).getDay();
   }
 
-  if (!user) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "2rem", padding: "2rem" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 13, letterSpacing: "0.15em", color: "var(--color-text-secondary)", marginBottom: 8, textTransform: "uppercase" }}>Founders War Room</div>
-          <h1 style={{ fontSize: 36, fontWeight: 700, margin: 0, letterSpacing: "-1px" }}>HACKLAB</h1>
-          <p style={{ color: "var(--color-text-secondary)", marginTop: 8, fontSize: 14 }}>Choose your identity</p>
-        </div>
-        <div style={{ display: "flex", gap: 16 }}>
-          {USERS.map(u => (
-            <button key={u} onClick={() => setUser(u)} style={{
-              padding: "1rem 2.5rem", borderRadius: 12, border: `2px solid ${USER_COLORS[u]}`,
-              background: "transparent", color: USER_COLORS[u], fontWeight: 700, fontSize: 16,
-              cursor: "pointer", letterSpacing: "0.05em"
-            }}>{u}</button>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  
+    if (!user) {
+  return (
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      flexDirection: "column",
+      gap: "1rem"
+    }}>
+      <h1>HackLab Login</h1>
+
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{
+          padding: "10px",
+          width: "250px"
+        }}
+      />
+
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{
+          padding: "10px",
+          width: "250px"
+        }}
+      />
+
+      <button
+        onClick={login}
+        style={{
+          padding: "10px 20px",
+          cursor: "pointer"
+        }}
+      >
+        Login
+      </button>
+    </div>
+  );
+}
 
   const statsA = getStats("Founder A");
   const statsB = getStats("Founder B");
