@@ -351,7 +351,7 @@ const rival =
           }}>
             <i className={`ti ${t.icon}`} aria-hidden="true" style={{ fontSize: 15 }}></i>
             {t.label}
-            {t.id === "chat" && chat.length > 0 && <span style={{ background: color, color: "#fff", borderRadius: 10, fontSize: 10, padding: "1px 6px", fontWeight: 700 }}>{chat.filter(c => c.user !== user).length > 0 ? "•" : ""}</span>}
+            {t.id === "chat" && chat.length > 0 && <span style={{ background: color, color: "#fff", borderRadius: 10, fontSize: 10, padding: "1px 6px", fontWeight: 700 }}>{chat.filter(c => c.user !== founderName).length > 0 ? "•" : ""}</span>}
           </button>
         ))}
       </div>
@@ -449,7 +449,7 @@ const rival =
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--color-text-secondary)" }}>Recent Sessions</div>
               {sessions.slice(0, 6).map(s => (
                 <div key={s.id} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: USER_COLORS[s.user], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0, marginTop: 2 }}>{USER_AVATARS[s.user]}</div>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: USER_COLORS[s.user], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", flexShrink: 0, marginTop: 2 }}>{USER_AVATARS[s.founderName]}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: USER_COLORS[s.user] }}>{s.user}</span>
@@ -476,7 +476,7 @@ const rival =
               <div key={s.id} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: USER_COLORS[s.user], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff" }}>{USER_AVATARS[s.user]}</div>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: USER_COLORS[s.user], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff" }}>{USER_AVATARS[s.founderName]}</div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: USER_COLORS[s.user] }}>{s.user}</span>
                     <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{s.date}</span>
                   </div>
@@ -515,7 +515,7 @@ const rival =
                       <input type="checkbox" checked={t.done} onChange={() => toggleTodo(t.id)} style={{ cursor: "pointer", accentColor: USER_COLORS[u] }} />
                       <span style={{ flex: 1, fontSize: 13, textDecoration: t.done ? "line-through" : "none", color: t.done ? "var(--color-text-secondary)" : "var(--color-text-primary)" }}>{t.text}</span>
                       <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{t.date}</span>
-                      {t.user === user && <button onClick={() => deleteTodo(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 16, lineHeight: 1 }}>×</button>}
+                      {t.user === founderName && <button onClick={() => deleteTodo(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 16, lineHeight: 1 }}>×</button>}
                     </div>
                   ))}
                 </div>
@@ -530,10 +530,10 @@ const rival =
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, paddingBottom: 8 }} ref={chatRef}>
               {chat.length === 0 && <div style={{ color: "var(--color-text-secondary)", fontSize: 13, textAlign: "center", marginTop: "4rem" }}>No messages yet. Start the conversation!</div>}
               {chat.map(m => {
-                const mine = m.user === user;
+                const mine = m.user === founderName;
                 return (
                   <div key={m.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", gap: 8, alignItems: "flex-end" }}>
-                    {!mine && <div style={{ width: 24, height: 24, borderRadius: "50%", background: USER_COLORS[m.user], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{USER_AVATARS[m.user]}</div>}
+                    {!mine && <div style={{ width: 24, height: 24, borderRadius: "50%", background: USER_COLORS[m.user], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{USER_AVATARS[m.founderName]}</div>}
                     <div style={{ maxWidth: "70%" }}>
                       <div style={{
                         padding: "8px 14px", borderRadius: mine ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
@@ -619,7 +619,7 @@ const rival =
                 <span style={{ fontSize: 12, color: "var(--color-text-secondary)", minWidth: 80 }}>{s.date}</span>
                 <span style={{ flex: 1, fontSize: 13 }}>{s.text}</span>
                 <span style={{ fontSize: 11, color: USER_COLORS[s.user], fontWeight: 600 }}>{s.user.replace("Founder ", "F")}</span>
-                {s.user === user && <button onClick={() => deleteSchedule(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 16 }}>×</button>}
+                {s.user === founderName && <button onClick={() => deleteSchedule(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 16 }}>×</button>}
               </div>
             ))}
             {schedule.filter(s => s.date >= today()).length === 0 && <div style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>Nothing scheduled yet.</div>}
