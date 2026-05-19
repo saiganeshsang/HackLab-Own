@@ -33,33 +33,49 @@ function fmtHours(ms) {
 
 export default function HackLab() {
   const [user, setUser] = useState(null);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [sessions, setSessions] = useState([]);
-
   const [activeSession, setActiveSession] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-
   const [sessionNote, setSessionNote] = useState("");
-
   const timerRef = useRef(null);
+  const subscriptionRef = useRef(null);
 
   const founderName =
     user?.email === "foundera@hacklab.com"
       ? "Founder A"
-      : "Founder B";
+      : user?.email === "founderb@hacklab.com"
+      ? "Founder B"
+      : null;
 
   const rival =
     founderName === "Founder A"
       ? "Founder B"
       : "Founder A";
 
-  const color = USER_COLORS[founderName];
+  const color = USER_COLORS[founderName] || "#ffffff";
 
   useEffect(() => {
     fetchSessions();
+
+    const subscription = supabase
+      .channel('sessions-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'sessions' }, 
+        () => {
+          fetchSessions();
+        }
+      )
+      .subscribe();
+
+    subscriptionRef.current = subscription;
+
+    return () => {
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -75,11 +91,20 @@ export default function HackLab() {
   }, [activeSession]);
 
   async function login() {
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+
+    if (email !== "foundera@hacklab.com" && email !== "founderb@hacklab.com") {
+      alert("Access denied. Only Founder A and Founder B can log in.");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       alert(error.message);
@@ -97,6 +122,8 @@ export default function HackLab() {
 
     if (!error && data) {
       setSessions(data);
+    } else if (error) {
+      console.error("Error fetching sessions:", error);
     }
   }
 
@@ -107,24 +134,26 @@ export default function HackLab() {
   }
 
   async function stopSession() {
-    if (!sessionNote.trim()) return;
+    if (!sessionNote.trim()) {
+      alert("Please add a note about your work.");
+      return;
+    }
 
-    const duration =
-      Date.now() - activeSession.startTime;
+    const duration = Date.now() - activeSession.startTime;
 
     const newSession = {
-      user: founderName,
+      username: founderName,  // Changed from 'user' to 'username'
       note: sessionNote,
       duration,
       date: today(),
     };
 
-    const { error } = await supabase
-      .from("sessions")
-      .insert([newSession]);
+    const { error } = await supabase.from("sessions").insert([newSession]);
 
-    if (!error) {
-      fetchSessions();
+    if (error) {
+      alert("Error saving session: " + error.message);
+    } else {
+      await fetchSessions();
     }
 
     setActiveSession(null);
@@ -133,15 +162,8 @@ export default function HackLab() {
   }
 
   function getStats(u) {
-    const mine = sessions.filter(
-      (s) => s.user === u
-    );
-
-    const total = mine.reduce(
-      (a, s) => a + s.duration,
-      0
-    );
-
+    const mine = sessions.filter((s) => s.username === u);  // Changed from s.user to s.username
+    const total = mine.reduce((a, s) => a + s.duration, 0);
     const todayTotal = mine
       .filter((s) => s.date === today())
       .reduce((a, s) => a + s.duration, 0);
@@ -153,19 +175,6 @@ export default function HackLab() {
     };
   }
 
-  const statsA = getStats("Founder A");
-  const statsB = getStats("Founder B");
-
-  const myStats =
-    founderName === "Founder A"
-      ? statsA
-      : statsB;
-
-  const rivalStats =
-    founderName === "Founder A"
-      ? statsB
-      : statsA;
-
   if (!user) {
     return (
       <div
@@ -176,20 +185,27 @@ export default function HackLab() {
           alignItems: "center",
           flexDirection: "column",
           gap: "1rem",
+          background: "#111",
+          color: "white",
         }}
       >
         <h1>HackLab Login</h1>
+        <p style={{ marginBottom: "1rem", color: "#aaa" }}>
+          Only Founder A and Founder B can access
+        </p>
 
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email (foundera@hacklab.com or founderb@hacklab.com)"
           value={email}
-          onChange={(e) =>
-            setEmail(e.target.value)
-          }
+          onChange={(e) => setEmail(e.target.value)}
           style={{
             padding: "10px",
-            width: "260px",
+            width: "300px",
+            borderRadius: "6px",
+            border: "1px solid #333",
+            background: "#222",
+            color: "white",
           }}
         />
 
@@ -197,12 +213,14 @@ export default function HackLab() {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
+          onChange={(e) => setPassword(e.target.value)}
           style={{
             padding: "10px",
-            width: "260px",
+            width: "300px",
+            borderRadius: "6px",
+            border: "1px solid #333",
+            background: "#222",
+            color: "white",
           }}
         />
 
@@ -211,6 +229,11 @@ export default function HackLab() {
           style={{
             padding: "10px 20px",
             cursor: "pointer",
+            background: "#3b82f6",
+            border: "none",
+            color: "white",
+            borderRadius: "6px",
+            fontWeight: "bold",
           }}
         >
           Login
@@ -218,6 +241,21 @@ export default function HackLab() {
       </div>
     );
   }
+
+  if (!founderName) {
+    return (
+      <div style={{ padding: "2rem", color: "white", background: "#111", minHeight: "100vh" }}>
+        <h2>Unauthorized Access</h2>
+        <p>Your email is not recognized as a founder.</p>
+        <button onClick={() => setUser(null)}>Go Back</button>
+      </div>
+    );
+  }
+
+  const statsA = getStats("Founder A");
+  const statsB = getStats("Founder B");
+  const myStats = founderName === "Founder A" ? statsA : statsB;
+  const rivalStats = founderName === "Founder A" ? statsB : statsA;
 
   return (
     <div
@@ -233,21 +271,28 @@ export default function HackLab() {
           display: "flex",
           justifyContent: "space-between",
           marginBottom: "2rem",
+          flexWrap: "wrap",
+          gap: "1rem",
         }}
       >
         <div>
-          <h1>HACKLAB</h1>
-
+          <h1>⚡ HACKLAB</h1>
           <div>
             Logged in as{" "}
-            <b style={{ color }}>
-              {founderName}
-            </b>
+            <b style={{ color }}>{founderName}</b>
           </div>
         </div>
 
         <button
           onClick={() => setUser(null)}
+          style={{
+            padding: "8px 16px",
+            background: "#333",
+            border: "none",
+            color: "white",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
         >
           Logout
         </button>
@@ -256,7 +301,7 @@ export default function HackLab() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
           gap: "1rem",
           marginBottom: "2rem",
         }}
@@ -264,46 +309,38 @@ export default function HackLab() {
         <div
           style={{
             background: "#222",
-            padding: "1rem",
+            padding: "1.5rem",
             borderRadius: "12px",
+            borderLeft: `4px solid ${color}`,
           }}
         >
-          <h2>Your Stats</h2>
-
-          <p>Today: {fmtHours(myStats.today)}</p>
-
-          <p>Total: {fmtHours(myStats.total)}</p>
-
-          <p>Sessions: {myStats.count}</p>
+          <h3 style={{ marginTop: 0, color }}>📊 Your Stats</h3>
+          <p>🔥 Today: {fmtHours(myStats.today)}</p>
+          <p>📈 Total: {fmtHours(myStats.total)}</p>
+          <p>📋 Sessions: {myStats.count}</p>
         </div>
 
         <div
           style={{
             background: "#222",
-            padding: "1rem",
+            padding: "1.5rem",
             borderRadius: "12px",
+            borderLeft: `4px solid ${USER_COLORS[rival]}`,
           }}
         >
-          <h2>{rival} Stats</h2>
-
-          <p>
-            Today: {fmtHours(rivalStats.today)}
-          </p>
-
-          <p>
-            Total: {fmtHours(rivalStats.total)}
-          </p>
-
-          <p>
-            Sessions: {rivalStats.count}
-          </p>
+          <h3 style={{ marginTop: 0, color: USER_COLORS[rival] }}>
+            🆚 {rival} Stats
+          </h3>
+          <p>🔥 Today: {fmtHours(rivalStats.today)}</p>
+          <p>📈 Total: {fmtHours(rivalStats.total)}</p>
+          <p>📋 Sessions: {rivalStats.count}</p>
         </div>
       </div>
 
       <div
         style={{
           background: "#222",
-          padding: "1rem",
+          padding: "1.5rem",
           borderRadius: "12px",
           marginBottom: "2rem",
         }}
@@ -317,24 +354,32 @@ export default function HackLab() {
               border: "none",
               color: "white",
               borderRadius: "8px",
+              fontSize: "1rem",
+              fontWeight: "bold",
+              cursor: "pointer",
             }}
           >
-            Start Session
+            ▶ Start Session
           </button>
         ) : (
           <>
-            <h1>{fmt(elapsed)}</h1>
+            <h1 style={{ fontFamily: "monospace", fontSize: "3rem", margin: "0 0 1rem 0" }}>
+              {fmt(elapsed)}
+            </h1>
 
             <textarea
-              placeholder="What did you work on?"
+              placeholder="What did you work on? (required)"
               value={sessionNote}
-              onChange={(e) =>
-                setSessionNote(e.target.value)
-              }
+              onChange={(e) => setSessionNote(e.target.value)}
               style={{
                 width: "100%",
-                height: "120px",
+                height: "100px",
                 marginBottom: "1rem",
+                padding: "8px",
+                borderRadius: "8px",
+                background: "#333",
+                color: "white",
+                border: "1px solid #444",
               }}
             />
 
@@ -346,48 +391,59 @@ export default function HackLab() {
                 border: "none",
                 color: "white",
                 borderRadius: "8px",
+                fontSize: "1rem",
+                fontWeight: "bold",
+                cursor: "pointer",
               }}
             >
-              Stop & Save
+              ⏹ Stop & Save
             </button>
           </>
         )}
       </div>
 
       <div>
-        <h2>Recent Sessions</h2>
-
-        {sessions.map((s) => (
-          <div
-            key={s.id}
-            style={{
-              background: "#222",
-              padding: "1rem",
-              borderRadius: "10px",
-              marginBottom: "1rem",
-            }}
-          >
+        <h2>📜 Recent Sessions</h2>
+        {sessions.length === 0 ? (
+          <p style={{ color: "#aaa" }}>No sessions recorded yet. Start your first session!</p>
+        ) : (
+          sessions.map((s) => (
             <div
+              key={s.id}
               style={{
-                color: USER_COLORS[s.user],
-                fontWeight: "bold",
+                background: "#222",
+                padding: "1rem",
+                borderRadius: "10px",
+                marginBottom: "1rem",
+                borderLeft: `4px solid ${USER_COLORS[s.username]}`,  // Changed from s.user to s.username
               }}
             >
-              {USER_AVATARS[s.user]} {s.user}
-            </div>
+              <div
+                style={{
+                  color: USER_COLORS[s.username],  // Changed from s.user to s.username
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <span>{USER_AVATARS[s.username]}</span> {s.username}  // Changed from s.user to s.username
+              </div>
 
-            <div>{s.note}</div>
+              <div style={{ margin: "8px 0" }}>{s.note}</div>
 
-            <div
-              style={{
-                marginTop: "0.5rem",
-                opacity: 0.7,
-              }}
-            >
-              {s.date} • {fmtHours(s.duration)}
+              <div
+                style={{
+                  marginTop: "0.5rem",
+                  opacity: 0.7,
+                  fontSize: "0.85rem",
+                }}
+              >
+                📅 {s.date} • ⏱ {fmtHours(s.duration)}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
